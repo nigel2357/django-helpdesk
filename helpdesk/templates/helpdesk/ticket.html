@@ -87,11 +87,11 @@ $(document).on('change', ':file', function() {
                 <div class="timeline-badge{% if forloop.first %} success{% endif %}"><i class="fa {% if forloop.first %}fa-plus-square{% else %}{% if followup.ticketchange_set.all %}fa-gears{% else %}{% if followup.user %}fa-share{% else %}fa-reply{% endif %}{% endif %}{% endif %}"></i></div>
                 <div class="timeline-panel">
                     <div class="timeline-heading">
-                        <h4 class="timeline-title">{{ followup.title }}</h4>
-                        <p><small class="text-muted"><i class="fa fa-clock-o"></i>&nbsp;<span class='byline text-info'>{% if followup.user %}by {{ followup.user }}{% endif %} <span title='{{ followup.date|date:"r" }}'>{{ followup.date|naturaltime }}</span>{% if not followup.public %} <span class='private'>({% trans "Private" %})</span>{% endif %}</span></small></p>
+                        <h4 class="timeline-title hd-squash">{{ followup.title }}</h4>
+                        <p class=hd-squash><small class="text-muted"><i class="fa fa-clock-o"></i>&nbsp;<span class='byline text-info'>{% if followup.user %}by {{ followup.user }}{% endif %} <span title='{{ followup.date|date:"r" }}'>{{ followup.date|naturaltime }}</span>{% if not followup.public %} <span class='private'>({% trans "Private" %})</span>{% endif %}</span></small></p>
                     </div>
                     <div class="timeline-body">
-                        <p>{% if followup.comment %}{{ followup.comment|force_escape|urlizetrunc:50|num_to_link|linebreaksbr }}{% endif %}</p>
+                        <p class=hd-squash>{% if followup.comment %}{{ followup.comment|force_escape|urlizetrunc:50|num_to_link|linebreaksbr }}{% endif %}</p>
                         {% for change in followup.ticketchange_set.all %}
                             {% if forloop.first %}<div class='changes'><ul>{% endif %}
                             <li>{% blocktrans with change.field as field and change.old_value as old_value and change.new_value as new_value %}Changed {{ field }} from {{ old_value }} to {{ new_value }}.{% endblocktrans %}</li>
