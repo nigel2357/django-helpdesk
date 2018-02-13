@@ -533,7 +533,7 @@ class Ticket(models.Model):
             site = Site.objects.get_current()
         except ImproperlyConfigured:
             site = Site(domain='configure-django-sites.com')
-        return u"http://%s%s?ticket=%s&email=%s" % (
+        return u"http://%s%s?ticket=%s&email=%s&" % ( # trailing & works around slash getting postpended somewhere
             site.domain,
             reverse('helpdesk:public_view'),
             self.ticket_for_url,
