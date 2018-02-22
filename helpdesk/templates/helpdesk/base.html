@@ -104,6 +104,15 @@
     /* query entries */
     #dropdown li.headerlink:hover ul { display: block; width: auto; }
     #dropdown li.headerlink:hover ul li { padding: 5px; margin: 1px; float: none; display: block; }
+
+    /* background color for dev site */
+    .panel > .panel-heading {
+    background-image: none;
+    background-color: #999966;
+    color: white;
+
+}
+
     </style>
 
     {% block helpdesk_head %}{% endblock %}
@@ -114,7 +123,7 @@
 
     <div id='container' class="container">
         <div id='header' class="row">
-            <h1>{% block h1_title %}{% trans "Helpdesk" %}{% endblock %}</h1>
+            <h1>{% block h1_title %}<span style="color: darkred">{% trans "Helpdesk" %}</span>{% endblock %}</h1>
             {% include "helpdesk/navigation.html" %}
         </div>
 
