@@ -1,0 +1,25 @@
+{% extends "helpdesk/navigation.html" %}
+
+{# may need to { % load ... % } things here -- each template is responsible for loading its own tags #}
+
+{#
+ # This file is provided as a place for the user of the software to put customizations of the navigation
+ # bar performed via Django template inheritance. This file should work unchanged with future releases
+ # of Django-helpdesk, provided it has not proved necessary to remove referenced blocks from nav2.html
+ #
+ # It sits between nav2 and base / public_base.html.
+ #
+ # To insert stuff while preserving what is already there use block.super
+ #
+ # Example follows, which inserts an HTML comment after the navbar dashboard item
+ #
+ # To inject css you can use <style></style> in block extra_css
+ # To inject scripts use <script></script> in either head_js (into HTML head) or basebody_end_js (at end of HTML body)
+ # In both cases always use block.super to add to existing content unless you *really* know otherwise!
+ #}
+
+{% block nav_dashboard %}
+  {{ block.super }}
+  <!-- <li> This comment via Django template inheritance </li> -->
+{% endblock nav_dashboard %}
+

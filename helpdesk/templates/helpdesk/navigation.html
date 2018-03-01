@@ -1,39 +1,55 @@
+{% extends "helpdesk/basebase.html" %}
 {% load i18n %}
-
+{% block navigation %}
 <!-- Navigation -->
         <nav class="navbar navbar-default navbar-fixed-top" role="navigation" style="margin-bottom: 0">
+            {% block navbar_header %}
             <div class="navbar-header">
+                {# is this button dead code, or does something un-collapse it sometimes? What? When? #}
                 <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#helpdesk-nav-collapse">
                     <span class="sr-only">{% trans 'Toggle navigation' %}</span>
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
+                {% block navbar_brand %}
                 <a class="navbar-brand" href="{% url 'helpdesk:home' %}">{% trans 'Helpdesk' %}</a>
+                {% endblock navbar_brand %}
             </div>
-            <!-- /.navbar-header -->
+            {% endblock navbar_header %}
 
             <div class="collapse navbar-collapse" id="helpdesk-nav-collapse">
             {% if helpdesk_settings.HELPDESK_NAVIGATION_ENABLED and user.is_authenticated or user.is_staff %}
             <ul class="nav navbar-top-links navbar-right">
+                {% block nav_dashboard %}
                 <li>
                     <a href='{% url 'helpdesk:dashboard' %}'><i class="fa fa-dashboard fa-fw"></i> <span class="nav-text">{% trans "Dashboard" %}</span></a>
                 </li>
+                {% endblock nav_dashboard %}
+                {% block nav_tickets %}
                 <li>
                     <a href='{% url 'helpdesk:list' %}'><i class="fa fa-tasks fa-fw"></i> <span class="nav-text">{% trans "Tickets" %}</span></a>
                 </li>
+                {% endblock nav_tickets %}
+                {% block nav_new_ticket %}
                 <li>
                     <a href='{% url 'helpdesk:submit' %}'><i class="fa fa-plus-circle fa-fw"></i> <span class="nav-text">{% trans "New Ticket" %}</span></a>
                 </li>
+                {% endblock nav_new_ticket %}
+                {% block nav_stats %}
                 <li>
                     <a href='{% url 'helpdesk:report_index' %}'><i class="fa fa-bar-chart-o fa-fw"></i> <span class="nav-text"> {% trans "Stats" %}</span></a>
                 </li>
+                {% endblock nav_stats %}
+                {% block nav_kb %}
                 {% if helpdesk_settings.HELPDESK_KB_ENABLED %}
                 <li>
                     <a href='{% url 'helpdesk:kb_index' %}'><i class="fa fa-database fa-fw"></i> <span class="nav-text">{% trans "Knowledgebase" %}</span></a>
                 </li>
 
                 {% endif %}
+                {% endblock nav_kb %}
+                {% block nav_userq %}
                 {% if user_saved_queries_ %}
                 <li class="headerlink dropdown"><a class="dropdown-toggle" data-toggle="dropdown" href="#"><i class="fa fa-filter fa-fw"></i> <span class="nav-text">{% trans "Saved Query" %} <b class="caret"></b></span></a>
                     <ul class="dropdown-menu">
@@ -46,6 +62,8 @@
                     </ul>
                 </li>
                 {% endif %}
+                {% endblock nav_userq %}
+                {% block nav_searchform %}
                 {% if not query %}
                 <li>
                     <form class="navbar-form navbar-top" id='searchform' method='get' action="{% url 'helpdesk:list' %}">
@@ -63,6 +81,8 @@
                     <!-- /input-group -->
                 </li>
                 {% endif %}
+                {% endblock nav_searchform %}
+                {% block nav_user %}
                 <li class="dropdown">
                     <a class="dropdown-toggle" data-toggle="dropdown" href="#">
                         <i class="fa fa-user fa-fw"></i> {{ user.get_full_name|default:user.get_username }} <i class="fa fa-caret-down"></i>
@@ -84,26 +104,50 @@
                     </ul>
                     <!-- /.dropdown-user -->
                 </li>
+                {% endblock nav_user %}
                 <!-- /.dropdown -->
             </ul>
             <!-- /.navbar-top-links -->
             {% else %}
                 {# Public menu #}
                 <ul id="dropdown" class="nav navbar-nav">
+                    {% block nav_public_first %}{# hook #}{% endblock nav_public_first %}
                     {% if helpdesk_settings.HELPDESK_ALLOW_NON_STAFF_TICKET_UPDATE %}
-                        <li><a href='{% url 'helpdesk:dashboard' %}'>{% trans "Dashboard" %}</a></li>
+                        {% block nav_public_dashboard1 %}
+                            <li><a href='{% url 'helpdesk:dashboard' %}'>{% trans "Dashboard" %}</a></li>
+                        {% endblock nav_public_dashboard1 %}
+                        {% block nav_public_submit1 %}
                         <li><a href='{% url 'helpdesk:submit' %}'>{% trans "Submit a Ticket" %}</a></li>
+                        {% endblock nav_public_submit1 %}
                     {% else %}
+                        {% block nav_public_submit %}
                         {% if helpdesk_settings.HELPDESK_SUBMIT_A_TICKET_PUBLIC %}
                             <li><a href='{% url 'helpdesk:submit' %}'>{% trans "Submit a Ticket" %}</a></li>
                         {% endif %}
+                        {% endblock nav_public_submit %}
                     {% endif %}
-                    {% if helpdesk_settings.HELPDESK_KB_ENABLED %}<li><a href='{% url 'helpdesk:kb_index' %}'>{% trans "Knowledgebase" %}</a></li>{% endif %}
+
+                    {% block nav_public_kb %}
+                        {% if helpdesk_settings.HELPDESK_KB_ENABLED %}<li><a href='{% url 'helpdesk:kb_index' %}'>{% trans "Knowledgebase" %}</a></li>{% endif %}
+                    {% endblock nav_public_kb %}
+
+
                     {% if not request.path == '/helpdesk/login/' or user.is_authenticated %}
-                        <li>{% if user.is_authenticated %}<a href='{% url 'helpdesk:logout' %}'>{% trans "Logout" %}</a>{% else %}<a href='{% url 'helpdesk:login' %}?next={% if next %}{{ next|escape }}{% else %}{% url 'helpdesk:home' %}{% endif %}'>{% trans "Log In" %}</a>{% endif %}</li>
+                        <li>{% if user.is_authenticated %}
+                                {% block nav_public_logout %}
+                                <a href='{% url 'helpdesk:logout' %}'>{% trans "Logout" %}</a>
+                                {% endblock nav_public_logout %}
+                            {% else %}
+                                {% block nav_public_login %}
+                                <a href='{% url 'helpdesk:login' %}?next={% if next %}{{ next|escape }}{% else %}{% url 'helpdesk:home' %}{% endif %}'>{% trans "Log In" %}</a>
+                                {% endblock nav_public_login %}
+                            {% endif %}
+                        </li>
                     {% endif %}
+                    {% block nav_public_last %}{# hook #}{% endblock nav_public_last %}
                 </ul>
             {% endif %}
             </div>
         </nav>
-
+{% endblock navigation %}
+{% block IE5stuff %}{{block.super}}{% endblock %}
