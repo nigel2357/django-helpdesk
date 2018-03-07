@@ -384,7 +384,6 @@ def subscribe_staff_member_to_ticket(ticket, user):
     )
     ticketcc.save()
 
-
 def update_ticket(request, ticket_id, public=False):
     if not (public or (
             request.user.is_authenticated and
@@ -406,6 +405,13 @@ def update_ticket(request, ticket_id, public=False):
     due_date_month = int(request.POST.get('due_date_month', 0))
     due_date_day = int(request.POST.get('due_date_day', 0))
 
+    own_ticket = not request.user.is_anonymous and ticket.submitter_email and request.user.email == ticket.submitter_email  
+    email_myself_as_owner = request.user.is_authenticated() and (
+        request.user.usersettings_helpdesk.settings.get('email_myself_on_updating_own_ticket', False)
+    )
+    cc_myself = request.user.is_authenticated() and (
+        request.user.usersettings_helpdesk.settings.get('cc_myself_on_updating_ticket', False)
+    )
     if not (due_date_year and due_date_month and due_date_day):
         due_date = ticket.due_date
     else:
@@ -564,30 +570,35 @@ def update_ticket(request, ticket_id, public=False):
 
         template_suffix = 'submitter'
 
+        send_email = ( (not own_ticket ) or                                # nothing to do with me
+                        ( own_ticket and email_myself_as_owner ) )         # mine - user choice
+
         if ticket.submitter_email:
-            send_templated_mail(
-                template + template_suffix,
-                context,
-                recipients=ticket.submitter_email,
-                sender=ticket.queue.from_address,
-                fail_silently=True,
-                files=files,
-            )
-            messages_sent_to.append(ticket.submitter_email)
+            if send_email: 
+                send_templated_mail(
+                    template + template_suffix,
+                   context,
+                   recipients=ticket.submitter_email, 
+                   sender=ticket.queue.from_address,
+                   fail_silently=True,
+                   files=files,
+                )
+                messages_sent_to.append(ticket.submitter_email) # even if blocked by user settings, so excluded below
 
         template_suffix = 'cc'
 
         for cc in ticket.ticketcc_set.all():
             if cc.email_address not in messages_sent_to:
-                send_templated_mail(
-                    template + template_suffix,
-                    context,
-                    recipients=cc.email_address,
-                    sender=ticket.queue.from_address,
-                    fail_silently=True,
-                    files=files,
-                )
-                messages_sent_to.append(cc.email_address)
+                if cc.email_address != request.user.email or cc_myself: # user can block cc to self                
+                    send_templated_mail(
+                        template + template_suffix,
+                        context,
+                        recipients=cc.email_address,
+                        sender=ticket.queue.from_address,
+                        fail_silently=True,
+                        files=files,
+                    )
+                    messages_sent_to.append(cc.email_address)
 
     if ticket.assigned_to and \
             request.user != ticket.assigned_to and \

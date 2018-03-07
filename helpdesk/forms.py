@@ -407,6 +407,17 @@ class UserSettingsForm(forms.Form):
         required=False,
     )
 
+    email_myself_on_updating_own_ticket = forms.BooleanField(  # NRA
+        label=_('E-mail me on changing my own tickets?'),
+        help_text=_('If you submitted the ticket and the ticket is changed by yourself, do you want to receive an e-mail?'),
+        required=False,
+    )
+    cc_myself_on_updating_ticket = forms.BooleanField(  # NRA
+        label=_("E-mail me via the cc list of a ticket I update?"),
+        help_text=_('If you are in the cc list of the ticket and you are updating it, do you want to receive an e-mail?'),
+        required=False,
+    )
+
     email_on_ticket_change = forms.BooleanField(
         label=_('E-mail me on ticket change?'),
         help_text=_('If you\'re the ticket owner and the ticket is changed via the web by somebody else, do you want to receive an e-mail?'),
