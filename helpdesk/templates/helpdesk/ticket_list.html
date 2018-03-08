@@ -84,6 +84,10 @@ tr.lesspadding > td, tr.lesspadding > th { padding: 4px !important;}
                                                 <option value='created'{% ifequal query_params.sorting "created"%} selected='selected'{% endifequal %}>
                                                     {% trans "Created" %}
                                                 </option>
+                                                <option value='modified'{% ifequal query_params.sorting "modified"%} selected='selected'{% endifequal %}>
+                                                    {% trans "Modified" %}
+                                                </option>
+
                                                 <option value='title'{% ifequal query_params.sorting "title"%} selected='selected'{% endifequal %}>
                                                     {% trans "Title" %}
                                                 </option>
