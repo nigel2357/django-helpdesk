@@ -235,7 +235,7 @@ tr.lesspadding > td, tr.lesspadding > th { padding: 4px !important;}
                                             <th>{% trans "Title" %}</th>
                                             <th>{% trans "Queue" %}</th>
                                             <th>{% trans "Status" %}</th>
-                                            <th>{% trans "Created" %}</th>
+                                            <th>{% ifequal query_params.sorting "modified" %}{% trans "Modified" %}{% else %}{% trans "Created" %}{% endifequal %}</th>
                                             <th>{% trans "Owner" %}</th>
                                         </tr>
                                     </thead>
@@ -250,7 +250,11 @@ tr.lesspadding > td, tr.lesspadding > th { padding: 4px !important;}
                                             <th><a href='{{ ticket.get_absolute_url }}'>{{ ticket.title }}</a></th>
                                             <th><a href='{% url "helpdesk:list" %}{{qstring}}&queue={{ticket.queue.id}}&'>{{ ticket.queue }}</a></th>
                                             <td>{{ ticket.get_status }}</td>
-                                            <td data-order='{{ ticket.created|date:"U" }}'><span title='{{ ticket.created|date:"r" }}'>{{ ticket.created|naturaltime }}</span></td>
+                                            {% ifequal query_params.sorting "modified" %}
+                                                <td data-order='{{ ticket.modified|date:"U" }}'><span title='{{ ticket.modified|date:"r" }}'>{{ ticket.modified|naturaltime }}</span></td>
+                                            {% else %}
+                                                <td data-order='{{ ticket.created|date:"U" }}'><span title='{{ ticket.created|date:"r" }}'>{{ ticket.created|naturaltime }}</span></td>
+                                            {% endifequal %}
                                             <td>{{ ticket.get_assigned_to }}</td>
                                         </tr>
                                         {% endfor %}
