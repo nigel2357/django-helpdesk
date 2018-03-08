@@ -792,6 +792,7 @@ mass_update = staff_member_required(mass_update)
 
 def ticket_list(request):
     context = {}
+    SORTREVERSE=True # previous default was False
 
     user_queues = _get_user_queues(request.user)
     # Prefilter the allowed tickets
@@ -878,6 +879,7 @@ def ticket_list(request):
         query_params = {
             'filtering': {'status__in': [1, 2, 3]},
             'sorting': 'created',
+            'sortreverse':SORTREVERSE,
         }
     else:
         queues = request.GET.getlist('queue')
@@ -933,10 +935,11 @@ def ticket_list(request):
     try:
         ticket_qs = apply_query(tickets, query_params)
     except ValidationError:
-        # invalid parameters in query, return default query
+        # invalid parameters in query, return default query. Quite hard to get here. ?date_to=rubbish will exercise this.
         query_params = {
             'filtering': {'status__in': [1, 2, 3]},
             'sorting': 'created',
+            'sortreverse':SORTREVERSE
         }
         ticket_qs = apply_query(tickets, query_params)
 
