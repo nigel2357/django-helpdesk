@@ -37,6 +37,7 @@ from django.core.management.base import BaseCommand
 from django.db.models import Q
 from django.utils.translation import ugettext as _
 from django.utils import encoding, six, timezone
+from django.core.exceptions import ObjectDoesNotExist, ImproperlyConfigured
 
 from helpdesk import settings
 from helpdesk.lib import send_templated_mail, safe_template_context, process_attachments
@@ -71,18 +72,53 @@ class Command(BaseCommand):
             default=False,
             help='Hide details about each queue/message as they are processed',
         )
+        parser.add_argument( # should this be --single or --single-queue ... see below for meaning
+            '--queue',
+            action='store',
+            dest='single',
+            help='Parse Queue name out of subject line, of a single inbox defined for this queue',
+        )
 
     def handle(self, *args, **options):
         quiet = options.get('quiet', False)
-        process_email(quiet=quiet)
+        single = options.get( 'single', None)
+        process_email(quiet=quiet, single=single)
 
 
-def process_email(quiet=False):
-    for q in Queue.objects.filter(
-            email_box_type__isnull=False,
-            allow_email_submission=True):
+def process_email(quiet=False, single=None):
+#
+# single is an alternative way to process, where the queue is parsed out of the e-mail Subject header.
+# In this mode, only one queue is processed, and it contains the e-mail-box settings.
+# Canonically, call it inbox, and process an email box called inbox if IMAP. 
+#
+# It's far less work than
+# getting Gmail or whatever to filter incoming mail into one mailbox per queue, and then
+# comnfiguring all those queues. This way, django-helpdesk filters all its own mail.
+#
+# if working this way, NEW tickets (ie not REPLYs) will go on inbox queue, and somebody will need to
+# change them to an appropriate queue. Ticket edit allows queue to be changed, so new code not needed.
+#
+# is there any value in --parse-queue separated from --queue? Easy to do...
+#
+# it may be possible to add auto classification of NEW tickets onto an appropriate queue, but
+# I'm not volunteering for that!
+#
+
+
+    if single:
+        qqs = Queue.objects.filter( slug=single)
+        if( len(qqs) == 0):
+            raise ImproperlyConfigured( "Single queue {} does not exist".format( single) )
+        # note slug must be unique, so >1 queue can't happen.
+    else:
+        qqs= Queue.objects.filter(
+                email_box_type__isnull=False,
+                allow_email_submission=True)
+
+    for q in qqs:
 
         logger = logging.getLogger('django.helpdesk.queue.' + q.slug)
+
         if not q.logging_type or q.logging_type == 'none':
             logging.disable(logging.CRITICAL)  # disable all messages
         elif q.logging_type == 'info':
@@ -101,18 +137,22 @@ def process_email(quiet=False):
         handler = logging.FileHandler(join(logdir, q.slug + '_get_email.log'))
         logger.addHandler(handler)
 
+# now we have a logger ...
+        if single:
+            logger.info("Single inbox mode queue={} inbox={}".format( q.slug, q.email_box_imap_folder ) )
+            
         if not q.email_box_last_check:
             q.email_box_last_check = timezone.now() - timedelta(minutes=30)
 
         queue_time_delta = timedelta(minutes=q.email_box_interval or 0)
 
         if (q.email_box_last_check + queue_time_delta) < timezone.now():
-            process_queue(q, logger=logger)
+            process_queue(q, logger=logger, parse_queue=bool(single) )
             q.email_box_last_check = timezone.now()
             q.save()
 
 
-def process_queue(q, logger):
+def process_queue(q, logger, parse_queue=False):
     logger.info("***** %s: Begin processing mail for django-helpdesk" % ctime())
 
     if q.socks_proxy_type and q.socks_proxy_host and q.socks_proxy_port:
@@ -177,7 +217,7 @@ def process_queue(q, logger):
             logger.info("Processing message %s" % msgNum)
 
             full_message = encoding.force_text("\n".join(server.retr(msgNum)[1]), errors='replace')
-            ticket = ticket_from_message(message=full_message, queue=q, logger=logger)
+            ticket = ticket_from_message(message=full_message, queue=q, logger=logger, parse_queue=parse_queue)
 
             if ticket:
                 server.dele(msgNum)
@@ -229,7 +269,7 @@ def process_queue(q, logger):
                 logger.info("Processing message %s" % num)
                 status, data = server.fetch(num, '(RFC822)')
                 full_message = encoding.force_text(data[0][1], errors='replace')
-                ticket = ticket_from_message(message=full_message, queue=q, logger=logger)
+                ticket = ticket_from_message(message=full_message, queue=q, logger=logger, parse_queue=parse_queue)
                 if ticket:
                     server.store(num, '+FLAGS', '\\Deleted')
                     logger.info("Successfully processed message %s, deleted from IMAP server" % num)
@@ -250,7 +290,7 @@ def process_queue(q, logger):
             logger.info("Processing message %d" % i)
             with open(m, 'r') as f:
                 full_message = encoding.force_text(f.read(), errors='replace')
-                ticket = ticket_from_message(message=full_message, queue=q, logger=logger)
+                ticket = ticket_from_message(message=full_message, queue=q, logger=logger, parse_queue=parse_queue)
             if ticket:
                 logger.info("Successfully processed message %d, ticket/comment created." % i)
                 try:
@@ -290,7 +330,8 @@ def decode_mail_headers(string):
         return u' '.join([str(msg, encoding=charset, errors='replace') if charset else str(msg) for msg, charset in decoded])
 
 
-def ticket_from_message(message, queue, logger):
+def ticket_from_message(message, queue, logger, parse_queue=False): 
+    # queue is a queue object, if we replace it below (parse_queue=True)
     # 'message' must be an RFC822 formatted message.
     message = email.message_from_string(message) if six.PY3 else email.message_from_string(message.encode('utf-8'))
     subject = message.get('subject', _('Comment from e-mail'))
@@ -314,6 +355,38 @@ def ticket_from_message(message, queue, logger):
         # use a set to ensure no duplicates
         cc = set([x.strip() for x in tempcc])
 
+# this doesn't require filtering to separate inboxes. Instead, it parses queue out of the subject header
+# the passed queue is overridden, unless parsing fails
+#
+# may be a good  idea to include a random validation tag, and time- and usage-expire it? FOr the future.
+    if parse_queue:
+        matchobj = re.match(r".*\[(?P<qslug>[-\w]+)-(?P<id>\d+)\]", subject)
+        if matchobj:
+            ticket = matchobj.group('id')
+            qslug  = matchobj.group('qslug')
+            logger.info("Matched tracking ID %s-%s" % (qslug, ticket))
+            try:
+                qobj=Queue.objects.get(slug=qslug)
+                logger.info("Queue lookup OK id=%s" % (qobj.id,) )
+                queue = qobj
+            except ObjectDoesNotExist:
+                logger.info( "Queue lookup failed slug=%s" % (qslug,) )
+                ticket = None
+        else:
+            logger.info("No tracking ID matched.")
+            ticket = None 
+
+    else: # parse_queue
+        matchobj = re.match(r".*\[" + queue.slug + "-(?P<id>\d+)\]", subject)
+        if matchobj:
+            # This is a reply or forward.
+            ticket = matchobj.group('id')
+            logger.info("Matched tracking ID %s-%s" % (queue.slug, ticket))
+        else:
+            logger.info("No tracking ID matched.")
+            ticket = None
+
+
     for ignore in IgnoreEmail.objects.filter(Q(queues=queue) | Q(queues__isnull=True)):
         if ignore.test(sender_email):
             if ignore.keep_in_mailbox:
@@ -321,15 +394,6 @@ def ticket_from_message(message, queue, logger):
                 # and the 'True' will cause the message to be deleted.
                 return False
             return True
-
-    matchobj = re.match(r".*\[" + queue.slug + "-(?P<id>\d+)\]", subject)
-    if matchobj:
-        # This is a reply or forward.
-        ticket = matchobj.group('id')
-        logger.info("Matched tracking ID %s-%s" % (queue.slug, ticket))
-    else:
-        logger.info("No tracking ID matched.")
-        ticket = None
 
     body = None
     counter = 0
